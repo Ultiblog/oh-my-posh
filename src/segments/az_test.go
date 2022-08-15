@@ -1,11 +1,11 @@
 package segments
 
 import (
-	"io/ioutil"
 	"oh-my-posh/environment"
 	"oh-my-posh/mock"
 	"oh-my-posh/properties"
 	"oh-my-posh/template"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -113,14 +113,14 @@ func TestAzSegment(t *testing.T) {
 		env.On("Home").Return(home)
 		var azureProfile, azureRmContext string
 		if tc.HasCLI {
-			content, _ := ioutil.ReadFile("../test/azureProfile.json")
+			content, _ := os.ReadFile("../test/azureProfile.json")
 			azureProfile = string(content)
 		}
 		if tc.HasPowerShell {
-			content, _ := ioutil.ReadFile("../test/AzureRmContext.json")
+			content, _ := os.ReadFile("../test/AzureRmContext.json")
 			azureRmContext = string(content)
 		}
-		env.On("GOOS").Return(environment.LinuxPlatform)
+		env.On("GOOS").Return(environment.LINUX)
 		env.On("FileContent", filepath.Join(home, ".azure", "azureProfile.json")).Return(azureProfile)
 		env.On("FileContent", filepath.Join(home, ".azure", "AzureRmContext.json")).Return(azureRmContext)
 		env.On("Getenv", "AZURE_CONFIG_DIR").Return("")

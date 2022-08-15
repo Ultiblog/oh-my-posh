@@ -18,13 +18,14 @@ Local changes can also be displayed which uses the following syntax for both the
 
 :::tip
 PowerShell offers support for the `posh-git` module for autocompletion, but it is disabled by default.
-To enable this, set `$env:POSH_GIT_ENABLED = $true` in your `$PROFILE`.
+To enable this, set `$env:POSH_GIT_ENABLED = $true` in your `$PROFILE`. Be aware this calls `git status`
+twice, so in case you're having a slow repository, it's better to migrate to the [Posh-Git segment][poshgit].
 :::
 
-:::warning
-Starting from version 3.152.0, `display_status` is disabled by default.
+:::caution
+Starting from version 3.152.0, `fetch_status` is disabled by default.
 It improves performance but reduces the quantity of information. Don't forget to enable it in your theme if needed.
-An alternative is to use the [Posh-Git segment][poshgit]
+An alternative is to use the [Posh-Git segment][poshgit].
 :::
 
 ## Sample Configuration
@@ -65,8 +66,12 @@ You can set the following properties to `true` to enable fetching additional inf
 - fetch_stash_count: `boolean` fetch stash count - defaults to `false`
 - fetch_worktree_count: `boolean` fetch worktree count - defaults to `false`
 - fetch_upstream_icon: `boolean` - fetch upstream icon - defaults to `false`
-- untracked_modes: `map[string]string` - map of repo's where to override the default untracked mode (`no` | `normal` | `all`). For example
-`"untracked_modes": { "/Users/me/repos/repo1": "no" }` - defaults to `normal` for all repo's
+- untracked_modes: `map[string]string` - map of repo's where to override the default [untracked files mode][untracked] (`no` | `normal` | `all`). For example
+`"untracked_modes": { "/Users/me/repos/repo1": "no" }` - defaults to `normal` for all repo's. If you want to override for all repo's, use
+`*` to set the mode instead of the repo path.
+- ignore_submodules: `map[string]string` - map of repo's where to change the [--ignore-submodules][submodules] flag (`none`, `untracked`, `dirty` or `all`).
+For example `"ignore_submodules": { "/Users/me/repos/repo1": "all" }`. If you want to override for all repo's, use `*` to set the mode
+instead of the repo path.
 
 ### Icons
 
@@ -110,9 +115,11 @@ You can set the following properties to `true` to enable fetching additional inf
 
 ### Properties
 
-- `.Working`: `GitStatus` - changes in the working tree (see below)
+- `.RepoName`: `string` - the repo folder name
+- `.Working`: `GitStatus` - changes in the worktree (see below)
 - `.Staging`: `GitStatus` - staged changes in the work tree (see below)
 - `.HEAD`: `string` - the current HEAD context (branch/rebase/merge/...)
+- `.Ref`: `string` - the current HEAD reference (branch/tag/...)
 - `.Behind`: `int` - commits behind of upstream
 - `.Ahead`: `int` - commits ahead of upstream
 - `.BranchStatus`: `string` - the current branch context (ahead/behind string representation)
@@ -133,6 +140,8 @@ You can set the following properties to `true` to enable fetching additional inf
 - `.Changed`: `boolean` - if the status contains changes or not
 - `.String`: `string` - a string representation of the changes above
 
-[poshgit]: /docs/poshgit
+[poshgit]: /docs/segments/poshgit
 [templates]: /docs/configuration/templates
 [hyperlinks]: /docs/configuration/templates#helper-functions
+[untracked]: https://git-scm.com/docs/git-status#Documentation/git-status.txt---untracked-filesltmodegt
+[submodules]: https://git-scm.com/docs/git-status#Documentation/git-status.txt---ignore-submodulesltwhengt

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"oh-my-posh/environment"
 	"oh-my-posh/properties"
 )
@@ -12,7 +13,7 @@ type Owm struct {
 	props properties.Properties
 	env   environment.Environment
 
-	Temperature float64
+	Temperature int
 	Weather     string
 	URL         string
 	units       string
@@ -26,8 +27,6 @@ const (
 	Location properties.Property = "location"
 	// Units openweathermap units
 	Units properties.Property = "units"
-	// CacheTimeout cache timeout
-	CacheTimeout properties.Property = "cache_timeout"
 	// CacheKeyResponse key used when caching the response
 	CacheKeyResponse string = "owm_response"
 	// CacheKeyURL key used when caching the url responsible for the response
@@ -58,7 +57,7 @@ func (d *Owm) Template() string {
 }
 
 func (d *Owm) getResult() (*owmDataResponse, error) {
-	cacheTimeout := d.props.GetInt(CacheTimeout, DefaultCacheTimeout)
+	cacheTimeout := d.props.GetInt(properties.CacheTimeout, properties.DefaultCacheTimeout)
 	response := new(owmDataResponse)
 	if cacheTimeout > 0 {
 		// check if data stored in cache
@@ -77,10 +76,10 @@ func (d *Owm) getResult() (*owmDataResponse, error) {
 	apikey := d.props.GetString(APIKey, ".")
 	location := d.props.GetString(Location, "De Bilt,NL")
 	units := d.props.GetString(Units, "standard")
-	httpTimeout := d.props.GetInt(HTTPTimeout, DefaultHTTPTimeout)
+	httpTimeout := d.props.GetInt(properties.HTTPTimeout, properties.DefaultHTTPTimeout)
 	d.URL = fmt.Sprintf("http://api.openweathermap.org/data/2.5/weather?q=%s&units=%s&appid=%s", location, units, apikey)
 
-	body, err := d.env.HTTPRequest(d.URL, httpTimeout)
+	body, err := d.env.HTTPRequest(d.URL, nil, httpTimeout)
 	if err != nil {
 		return new(owmDataResponse), err
 	}
@@ -108,7 +107,7 @@ func (d *Owm) setStatus() error {
 	}
 	id := q.Data[0].TypeID
 
-	d.Temperature = q.temperature.Value
+	d.Temperature = int(math.Round(q.temperature.Value))
 	icon := ""
 	switch id {
 	case "01n":

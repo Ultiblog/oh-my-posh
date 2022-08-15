@@ -97,7 +97,7 @@ type Batch struct {
 }
 
 func (bf *Brewfather) Template() string {
-	return " {{ .StatusIcon }} {{ if .DaysBottledOrFermented }}{{ .DaysBottledOrFermented }}{{ .DayIcon }} {{ end }}{{ url .Recipe.Name .URL }} {{ printf \"%.1f\" .MeasuredAbv }}%{{ if and (.Reading) (eq .Status \"Fermenting\") }} {{ printf \"%.3f\" .Reading.Gravity }} {{ .Reading.Temperature }}\u00b0 {{ .TemperatureTrendIcon }}{{ end }} " // nolint:lll
+	return " {{ .StatusIcon }} {{ if .DaysBottledOrFermented }}{{ .DaysBottledOrFermented }}{{ .DayIcon }} {{ end }}{{ url .Recipe.Name .URL }} {{ printf \"%.1f\" .MeasuredAbv }}%{{ if and (.Reading) (eq .Status \"Fermenting\") }} {{ printf \"%.3f\" .Reading.Gravity }} {{ .Reading.Temperature }}\u00b0 {{ .TemperatureTrendIcon }}{{ end }} " //nolint:lll
 }
 
 func (bf *Brewfather) Enabled() bool {
@@ -245,7 +245,7 @@ func (bf *Brewfather) getResult() (*Batch, error) {
 	batchURL := fmt.Sprintf("https://api.brewfather.app/v1/batches/%s", batchID)
 	batchReadingsURL := fmt.Sprintf("https://api.brewfather.app/v1/batches/%s/readings", batchID)
 
-	httpTimeout := bf.props.GetInt(HTTPTimeout, DefaultHTTPTimeout)
+	httpTimeout := bf.props.GetInt(properties.HTTPTimeout, properties.DefaultHTTPTimeout)
 	cacheTimeout := bf.props.GetInt(BFCacheTimeout, 5)
 
 	if cacheTimeout > 0 {
@@ -258,7 +258,7 @@ func (bf *Brewfather) getResult() (*Batch, error) {
 	addAuthHeader := func(request *http.Request) {
 		request.Header.Add("authorization", authHeader)
 	}
-	body, err := bf.env.HTTPRequest(batchURL, httpTimeout, addAuthHeader)
+	body, err := bf.env.HTTPRequest(batchURL, nil, httpTimeout, addAuthHeader)
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +270,7 @@ func (bf *Brewfather) getResult() (*Batch, error) {
 	}
 
 	// readings
-	body, err = bf.env.HTTPRequest(batchReadingsURL, httpTimeout, addAuthHeader)
+	body, err = bf.env.HTTPRequest(batchReadingsURL, nil, httpTimeout, addAuthHeader)
 	if err != nil {
 		return nil, err
 	}

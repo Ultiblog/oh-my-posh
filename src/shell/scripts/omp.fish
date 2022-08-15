@@ -1,4 +1,4 @@
-set --export POSH_THEME '::CONFIG::'
+set --export POSH_THEME ::CONFIG::
 set --global POWERLINE_COMMAND "oh-my-posh"
 set --global CONDA_PROMPT_MODIFIER false
 set --global omp_tooltip_command ""
@@ -6,8 +6,12 @@ set --global omp_transient 0
 
 function fish_prompt
     set --local omp_status_cache_temp $status
+    # clear from cursor to end of screen as
+    # commandline --function repaint does not do this
+    # see https://github.com/fish-shell/fish-shell/issues/8418
+    printf \e\[0J
     if test "$omp_transient" = "1"
-      '::OMP::' print transient --config $POSH_THEME --shell fish --error $omp_status_cache --execution-time $omp_duration --stack-count $omp_stack_count --shell-version $FISH_VERSION
+      ::OMP:: print transient --config $POSH_THEME --shell fish --error $omp_status_cache --execution-time $omp_duration --stack-count $omp_stack_count --shell-version $FISH_VERSION
       return
     end
     set --global omp_status_cache $omp_status_cache_temp
@@ -25,7 +29,7 @@ function fish_prompt
       set --global --export omp_last_status_generation $status_generation
     end
 
-    '::OMP::' print primary --config $POSH_THEME --shell fish --error $omp_status_cache --execution-time $omp_duration --stack-count $omp_stack_count --shell-version $FISH_VERSION
+    ::OMP:: print primary --config $POSH_THEME --shell fish --error $omp_status_cache --execution-time $omp_duration --stack-count $omp_stack_count --shell-version $FISH_VERSION
 end
 
 function fish_right_prompt
@@ -35,14 +39,14 @@ function fish_right_prompt
       return
     end
     if test -n "$omp_tooltip_command"
-      set omp_tooltip_prompt ('::OMP::' print tooltip --config $POSH_THEME --shell fish --shell-version $FISH_VERSION --command $omp_tooltip_command)
+      set omp_tooltip_prompt (::OMP:: print tooltip --config $POSH_THEME --shell fish --error $omp_status_cache --shell-version $FISH_VERSION --command $omp_tooltip_command)
       if test -n "$omp_tooltip_prompt"
         echo -n $omp_tooltip_prompt
         set omp_tooltip_command ""
         return
       end
     end
-    '::OMP::' print right --config $POSH_THEME --shell fish --error $omp_status_cache --execution-time $omp_duration --stack-count $omp_stack_count --shell-version $FISH_VERSION
+    ::OMP:: print right --config $POSH_THEME --shell fish --error $omp_status_cache --execution-time $omp_duration --stack-count $omp_stack_count --shell-version $FISH_VERSION
 end
 
 function postexec_omp --on-event fish_postexec
@@ -54,12 +58,13 @@ end
 # tooltip
 
 function _render_tooltip
+  commandline --function expand-abbr
   set omp_tooltip_command (commandline --current-buffer | string collect)
   commandline --insert " "
   commandline --function repaint
 end
 
-function enable_poshtooltips
+if test "::TOOLTIPS::" = "true"
   bind \x20 _render_tooltip
 end
 
@@ -71,6 +76,12 @@ function _render_transient
   commandline --function execute
 end
 
-function enable_poshtransientprompt
+if test "::TRANSIENT::" = "true"
   bind \r _render_transient
+end
+
+# legacy functions
+function enable_poshtooltips
+end
+function enable_poshtransientprompt
 end

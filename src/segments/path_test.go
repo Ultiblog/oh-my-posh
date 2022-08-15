@@ -5,6 +5,7 @@ import (
 	"oh-my-posh/mock"
 	"oh-my-posh/properties"
 	"oh-my-posh/template"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -109,6 +110,41 @@ func TestRootLocationHome(t *testing.T) {
 		}
 		got := path.rootLocation()
 		assert.EqualValues(t, tc.Expected, got)
+	}
+}
+
+func TestParent(t *testing.T) {
+	// there's no Windows support/validation for this just yet
+	// mainly due to root being a special case
+	if runtime.GOOS == environment.WINDOWS {
+		return
+	}
+	cases := []struct {
+		Case          string
+		Expected      string
+		HomePath      string
+		Pwd           string
+		PathSeparator string
+	}{
+		{Case: "Home folder", Expected: "", HomePath: "/home/bill", Pwd: "/home/bill", PathSeparator: "/"},
+		{Case: "Inside home folder", Expected: "~/", HomePath: "/home/bill", Pwd: "/home/bill/test", PathSeparator: "/"},
+		{Case: "Root", Expected: "", HomePath: "/home/bill", Pwd: "/", PathSeparator: "/"},
+		{Case: "Root + 1", Expected: "/", HomePath: "/home/bill", Pwd: "/usr", PathSeparator: "/"},
+	}
+	for _, tc := range cases {
+		env := new(mock.MockedEnvironment)
+		env.On("Home").Return(tc.HomePath)
+		env.On("Pwd").Return(tc.Pwd)
+		env.On("Flags").Return(&environment.Flags{})
+		env.On("PathSeparator").Return(tc.PathSeparator)
+		env.On("GOOS").Return(environment.DARWIN)
+		path := &Path{
+			env:   env,
+			props: properties.Map{},
+		}
+		path.pwd = tc.Pwd
+		got := path.Parent()
+		assert.EqualValues(t, tc.Expected, got, tc.Case)
 	}
 }
 
@@ -344,8 +380,8 @@ func TestGetFullPath(t *testing.T) {
 		{Style: Folder, FolderSeparatorIcon: "|", Pwd: "/usr/home/abc", Expected: "abc"},
 		{Style: Folder, FolderSeparatorIcon: "|", Pwd: "/a/b/c/d", Expected: "d"},
 
-		{Style: Folder, FolderSeparatorIcon: "\\", Pwd: "C:\\", Expected: "C:\\", PathSeparator: "\\", GOOS: environment.WindowsPlatform},
-		{Style: Full, FolderSeparatorIcon: "\\", Pwd: "C:\\Users\\Jan", Expected: "C:\\Users\\Jan", PathSeparator: "\\", GOOS: environment.WindowsPlatform},
+		{Style: Folder, FolderSeparatorIcon: "\\", Pwd: "C:\\", Expected: "C:\\", PathSeparator: "\\", GOOS: environment.WINDOWS},
+		{Style: Full, FolderSeparatorIcon: "\\", Pwd: "C:\\Users\\Jan", Expected: "C:\\Users\\Jan", PathSeparator: "\\", GOOS: environment.WINDOWS},
 
 		// StackCountEnabled=true and StackCount=2
 		{Style: Full, FolderSeparatorIcon: "|", Pwd: "/", StackCount: 2, Expected: "2 /"},
@@ -476,14 +512,14 @@ func TestNormalizePath(t *testing.T) {
 		GOOS     string
 		Expected string
 	}{
-		{Input: "C:\\Users\\Bob\\Foo", GOOS: environment.LinuxPlatform, Expected: "C:/Users/Bob/Foo"},
-		{Input: "C:\\Users\\Bob\\Foo", GOOS: environment.WindowsPlatform, Expected: "c:/users/bob/foo"},
-		{Input: "~\\Bob\\Foo", GOOS: environment.LinuxPlatform, Expected: "/usr/home/Bob/Foo"},
-		{Input: "~\\Bob\\Foo", GOOS: environment.WindowsPlatform, Expected: "/usr/home/bob/foo"},
-		{Input: "/foo/~/bar", GOOS: environment.LinuxPlatform, Expected: "/foo/~/bar"},
-		{Input: "/foo/~/bar", GOOS: environment.WindowsPlatform, Expected: "/foo/~/bar"},
-		{Input: "~/baz", GOOS: environment.LinuxPlatform, Expected: "/usr/home/baz"},
-		{Input: "~/baz", GOOS: environment.WindowsPlatform, Expected: "/usr/home/baz"},
+		{Input: "C:\\Users\\Bob\\Foo", GOOS: environment.LINUX, Expected: "C:/Users/Bob/Foo"},
+		{Input: "C:\\Users\\Bob\\Foo", GOOS: environment.WINDOWS, Expected: "c:/users/bob/foo"},
+		{Input: "~\\Bob\\Foo", GOOS: environment.LINUX, Expected: "/usr/home/Bob/Foo"},
+		{Input: "~\\Bob\\Foo", GOOS: environment.WINDOWS, Expected: "/usr/home/bob/foo"},
+		{Input: "/foo/~/bar", GOOS: environment.LINUX, Expected: "/foo/~/bar"},
+		{Input: "/foo/~/bar", GOOS: environment.WINDOWS, Expected: "/foo/~/bar"},
+		{Input: "~/baz", GOOS: environment.LINUX, Expected: "/usr/home/baz"},
+		{Input: "~/baz", GOOS: environment.WINDOWS, Expected: "/usr/home/baz"},
 	}
 
 	for _, tc := range cases {
@@ -521,7 +557,7 @@ func TestGetFolderPathCustomMappedLocations(t *testing.T) {
 	assert.Equal(t, "#", got)
 }
 
-func TestAgnosterPath(t *testing.T) { // nolint:dupl
+func TestAgnosterPath(t *testing.T) { //nolint:dupl
 	cases := []struct {
 		Case          string
 		Expected      string
@@ -569,7 +605,7 @@ func TestAgnosterPath(t *testing.T) { // nolint:dupl
 	}
 }
 
-func TestAgnosterLeftPath(t *testing.T) { // nolint:dupl
+func TestAgnosterLeftPath(t *testing.T) { //nolint:dupl
 	cases := []struct {
 		Case          string
 		Expected      string

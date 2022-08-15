@@ -14,6 +14,9 @@ type BlockType string
 // BlockAlignment aligment of a Block
 type BlockAlignment string
 
+// Overflow defines how to handle a right block that overflows with the previous block
+type Overflow string
+
 const (
 	// Prompt writes one or more Segments
 	Prompt BlockType = "prompt"
@@ -25,17 +28,24 @@ const (
 	Left BlockAlignment = "left"
 	// Right aligns right
 	Right BlockAlignment = "right"
+	// Break adds a line break
+	Break Overflow = "break"
+	// Hide hides the block
+	Hide Overflow = "hide"
 )
 
 // Block defines a part of the prompt with optional segments
 type Block struct {
-	Type             BlockType      `json:"type,omitempty"`
-	Alignment        BlockAlignment `json:"alignment,omitempty"`
-	HorizontalOffset int            `json:"horizontal_offset,omitempty"`
-	VerticalOffset   int            `json:"vertical_offset,omitempty"`
-	Segments         []*Segment     `json:"segments,omitempty"`
-	Newline          bool           `json:"newline,omitempty"`
-	Filler           string         `json:"filler,omitempty"`
+	Type      BlockType      `json:"type,omitempty"`
+	Alignment BlockAlignment `json:"alignment,omitempty"`
+	Segments  []*Segment     `json:"segments,omitempty"`
+	Newline   bool           `json:"newline,omitempty"`
+	Filler    string         `json:"filler,omitempty"`
+	Overflow  Overflow       `json:"overflow,omitempty"`
+
+	// Deprecated: keep the logic for legacy purposes
+	HorizontalOffset int `json:"horizontal_offset,omitempty"`
+	VerticalOffset   int `json:"vertical_offset,omitempty"`
 
 	env                   environment.Environment
 	writer                color.Writer
@@ -53,7 +63,7 @@ func (b *Block) Init(env environment.Environment, writer color.Writer, ansi *col
 
 func (b *Block) InitPlain(env environment.Environment, config *Config) {
 	b.ansi = &color.Ansi{}
-	b.ansi.InitPlain(env.Shell())
+	b.ansi.InitPlain()
 	b.writer = &color.AnsiWriter{
 		Ansi:               b.ansi,
 		TerminalBackground: shell.ConsoleBackgroundColor(env, config.TerminalBackground),

@@ -54,10 +54,10 @@ func TestOWMSegmentSingle(t *testing.T) {
 	for _, tc := range cases {
 		env := &mock.MockedEnvironment{}
 		props := properties.Map{
-			APIKey:       "key",
-			Location:     "AMSTERDAM,NL",
-			Units:        "metric",
-			CacheTimeout: 0,
+			APIKey:                  "key",
+			Location:                "AMSTERDAM,NL",
+			Units:                   "metric",
+			properties.CacheTimeout: 0,
 		}
 
 		env.On("HTTPRequest", OWMAPIURL).Return([]byte(tc.JSONResponse), tc.Error)
@@ -182,17 +182,17 @@ func TestOWMSegmentIcons(t *testing.T) {
 	for _, tc := range cases {
 		env := &mock.MockedEnvironment{}
 
-		response := fmt.Sprintf(`{"weather":[{"icon":"%s"}],"main":{"temp":20}}`, tc.IconID)
+		response := fmt.Sprintf(`{"weather":[{"icon":"%s"}],"main":{"temp":20.3}}`, tc.IconID)
 		expectedString := fmt.Sprintf("%s (20°C)", tc.ExpectedIconString)
 
 		env.On("HTTPRequest", OWMAPIURL).Return([]byte(response), nil)
 
 		o := &Owm{
 			props: properties.Map{
-				APIKey:       "key",
-				Location:     "AMSTERDAM,NL",
-				Units:        "metric",
-				CacheTimeout: 0,
+				APIKey:                  "key",
+				Location:                "AMSTERDAM,NL",
+				Units:                   "metric",
+				properties.CacheTimeout: 0,
 			},
 			env: env,
 		}
@@ -205,17 +205,17 @@ func TestOWMSegmentIcons(t *testing.T) {
 	for _, tc := range cases {
 		env := &mock.MockedEnvironment{}
 
-		response := fmt.Sprintf(`{"weather":[{"icon":"%s"}],"main":{"temp":20}}`, tc.IconID)
+		response := fmt.Sprintf(`{"weather":[{"icon":"%s"}],"main":{"temp":20.3}}`, tc.IconID)
 		expectedString := fmt.Sprintf("[%s (20°C)](http://api.openweathermap.org/data/2.5/weather?q=AMSTERDAM,NL&units=metric&appid=key)", tc.ExpectedIconString)
 
 		env.On("HTTPRequest", OWMAPIURL).Return([]byte(response), nil)
 
 		o := &Owm{
 			props: properties.Map{
-				APIKey:       "key",
-				Location:     "AMSTERDAM,NL",
-				Units:        "metric",
-				CacheTimeout: 0,
+				APIKey:                  "key",
+				Location:                "AMSTERDAM,NL",
+				Units:                   "metric",
+				properties.CacheTimeout: 0,
 			},
 			env: env,
 		}

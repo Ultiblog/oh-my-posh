@@ -34,11 +34,52 @@ func TestCanWriteRPrompt(t *testing.T) {
 		env := new(mock.MockedEnvironment)
 		env.On("TerminalWidth").Return(tc.TerminalWidth, tc.TerminalWidthError)
 		engine := &Engine{
-			Env: env,
+			Env:               env,
+			rpromptLength:     tc.RPromptLength,
+			currentLineLength: tc.PromptLength,
+			rprompt:           "hello",
 		}
-		engine.rpromptLength = tc.RPromptLength
-		engine.currentLineLength = tc.PromptLength
-		got := engine.canWriteRPrompt()
+		got := engine.canWriteRPrompt(true)
+		assert.Equal(t, tc.Expected, got, tc.Case)
+	}
+}
+
+func TestPrintPWD(t *testing.T) {
+	cases := []struct {
+		Case     string
+		Expected string
+		PWD      string
+		OSC99    bool
+	}{
+		{Case: "Empty PWD"},
+		{Case: "OSC99", PWD: color.OSC99, Expected: "\x1b]9;9;\"pwd\"\x1b\\"},
+		{Case: "OSC7", PWD: color.OSC7, Expected: "\x1b]7;\"file://host/pwd\"\x1b\\"},
+		{Case: "Deprecated OSC99", OSC99: true, Expected: "\x1b]9;9;\"pwd\"\x1b\\"},
+		{Case: "Template (empty)", PWD: "{{ if eq .Shell \"pwsh\" }}osc7{{ end }}"},
+		{Case: "Template (non empty)", PWD: "{{ if eq .Shell \"shell\" }}osc7{{ end }}", Expected: "\x1b]7;\"file://host/pwd\"\x1b\\"},
+	}
+
+	for _, tc := range cases {
+		env := new(mock.MockedEnvironment)
+		env.On("Pwd").Return("pwd")
+		env.On("Shell").Return("shell")
+		env.On("Host").Return("host", nil)
+		env.On("TemplateCache").Return(&environment.TemplateCache{
+			Env:   make(map[string]string),
+			Shell: "shell",
+		})
+		ansi := &color.Ansi{}
+		ansi.InitPlain()
+		engine := &Engine{
+			Env: env,
+			Config: &Config{
+				PWD:   tc.PWD,
+				OSC99: tc.OSC99,
+			},
+			Ansi: ansi,
+		}
+		engine.printPWD()
+		got := engine.print()
 		assert.Equal(t, tc.Expected, got, tc.Case)
 	}
 }
@@ -58,7 +99,7 @@ func engineRender() {
 	defer testClearDefaultConfig()
 
 	ansi := &color.Ansi{}
-	ansi.InitPlain(env.Shell())
+	ansi.InitPlain()
 	writerColors := cfg.MakeColors(env)
 	writer := &color.AnsiWriter{
 		Ansi:               ansi,

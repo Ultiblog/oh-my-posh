@@ -22,18 +22,19 @@ end
 
 local endedit_time
 local last_duration
-local tip_word
+local tip
+local tooltip_active = false
 local cached_prompt = {}
 
 local function omp_exe()
-    return [["::OMP::"]]
+    return '"'..::OMP::..'"'
 end
 
 local function omp_config()
-    return [["::CONFIG::"]]
+    return '"'..::CONFIG::..'"'
 end
 
-os.setenv("POSH_THEME", omp_config())
+os.setenv("POSH_THEME", ::CONFIG::)
 
 local function can_async()
     if (clink.version_encoded or 0) >= 10030001 then
@@ -104,14 +105,20 @@ local function get_posh_prompt(rprompt)
     return run_posh_command(prompt_exe)
 end
 
-local function get_posh_tooltip(command)
-    local prompt_exe = string.format('%s print tooltip --shell=cmd --config=%s --command="%s"', omp_exe(), omp_config(), command)
-    local tooltip = run_posh_command(prompt_exe)
-    if tooltip == "" then
-        -- If no tooltip, generate normal rprompt.
-        tooltip = get_posh_prompt(true)
+local function set_posh_tooltip(command)
+    if command == nil then
+        return
     end
-    return tooltip
+    -- escape double quote characters properly, if any
+    command = string.gsub(command, '\\+"', '%1%1"')
+    command = string.gsub(command, '\\+$', '%1%1')
+    command = string.gsub(command, '"', '\\"')
+    local prompt_exe = string.format('%s print tooltip --shell=cmd %s --config=%s --command="%s"', omp_exe(), error_level_option(), omp_config(), command)
+    local tooltip = run_posh_command(prompt_exe)
+    if tooltip ~= "" then
+        tooltip_active = true
+        cached_prompt.right = tooltip
+    end
 end
 
 -- set priority lower than z.lua
@@ -129,10 +136,7 @@ function p:filter(prompt)
     return cached_prompt.left
 end
 function p:rightfilter(prompt)
-    if tip_word == nil then
-        -- No tooltip needed, so generate prompt normally.
-        cached_prompt.right = get_posh_prompt(true)
-    elseif cached_prompt.tip_space and can_async() then
+    if cached_prompt.tip_space and can_async() then
         -- Generate tooltip asynchronously in response to Spacebar.
         if cached_prompt.coroutine then
             -- Coroutine is already in progress.  The cached right prompt will
@@ -140,7 +144,7 @@ function p:rightfilter(prompt)
         else
             -- Create coroutine to generate tooltip rprompt.
             cached_prompt.coroutine = coroutine.create(function ()
-                cached_prompt.right = get_posh_tooltip(tip_word)
+                set_posh_tooltip(tip)
                 cached_prompt.tip_done = true
                 -- Refresh the prompt once the tooltip is generated.
                 clink.refilterprompt()
@@ -148,7 +152,7 @@ function p:rightfilter(prompt)
         end
         if cached_prompt.tip_done then
             -- Once the tooltip is ready, clear the Spacebar flag so that if the
-            -- command word changes and the Spacebar is pressed again, we can
+            -- tip changes and the Spacebar is pressed again, we can
             -- generate a new tooltip.
             cached_prompt.tip_done = nil
             cached_prompt.tip_space = nil
@@ -157,7 +161,11 @@ function p:rightfilter(prompt)
     else
         -- Tooltip is needed, but not in response to Spacebar, so refresh it
         -- immediately.
-        cached_prompt.right = get_posh_tooltip(tip_word)
+        set_posh_tooltip(tip)
+    end
+    if not tooltip_active then
+        -- Tooltip is not active, generate rprompt normally.
+        cached_prompt.right = get_posh_prompt(true)
     end
     return cached_prompt.right, false
 end
@@ -192,16 +200,16 @@ end
 -- Tooltips
 
 function ohmyposh_space(rl_buffer)
+    local new_tip = string.gsub(rl_buffer:getbuffer(), "^%s*(.-)%s*$", "%1")
     rl_buffer:insert(" ")
-    local words = string.explode(rl_buffer:getbuffer(), ' ', [["]])
-    if words[1] ~= tip_word then
-        tip_word = words[1] -- remember the first word for use when filtering the prompt
+    if new_tip ~= tip then
+        tip = new_tip -- remember the tip for use when filtering the prompt
         cached_prompt.tip_space = can_async()
-        clink.refilterprompt() -- invoke the prompt filters so omp can update the prompt per the tip word
+        clink.refilterprompt() -- invoke the prompt filters so OMP can update the prompt per the tip
     end
 end
 
 if rl.setbinding then
-    clink.onbeginedit(function () tip_word = nil cached_prompt = {} end)
+    clink.onbeginedit(function () tip = nil cached_prompt = {} end)
     rl.setbinding(' ', [["luafunc:ohmyposh_space"]], 'emacs')
 end

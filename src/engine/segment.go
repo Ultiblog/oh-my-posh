@@ -3,7 +3,6 @@ package engine
 import (
 	"errors"
 	"fmt"
-	"oh-my-posh/color"
 	"oh-my-posh/environment"
 	"oh-my-posh/properties"
 	"oh-my-posh/segments"
@@ -16,20 +15,22 @@ import (
 
 // Segment represent a single segment and it's configuration
 type Segment struct {
-	Type                SegmentType     `json:"type,omitempty"`
-	Tips                []string        `json:"tips,omitempty"`
-	Style               SegmentStyle    `json:"style,omitempty"`
-	PowerlineSymbol     string          `json:"powerline_symbol,omitempty"`
-	InvertPowerline     bool            `json:"invert_powerline,omitempty"`
-	Foreground          string          `json:"foreground,omitempty"`
-	ForegroundTemplates color.Templates `json:"foreground_templates,omitempty"`
-	Background          string          `json:"background,omitempty"`
-	BackgroundTemplates color.Templates `json:"background_templates,omitempty"`
-	LeadingDiamond      string          `json:"leading_diamond,omitempty"`
-	TrailingDiamond     string          `json:"trailing_diamond,omitempty"`
-	Template            string          `json:"template,omitempty"`
-	Properties          properties.Map  `json:"properties,omitempty"`
-	Interactive         bool            `json:"interactive,omitempty"`
+	Type                SegmentType    `json:"type,omitempty"`
+	Tips                []string       `json:"tips,omitempty"`
+	Style               SegmentStyle   `json:"style,omitempty"`
+	PowerlineSymbol     string         `json:"powerline_symbol,omitempty"`
+	InvertPowerline     bool           `json:"invert_powerline,omitempty"`
+	Foreground          string         `json:"foreground,omitempty"`
+	ForegroundTemplates template.List  `json:"foreground_templates,omitempty"`
+	Background          string         `json:"background,omitempty"`
+	BackgroundTemplates template.List  `json:"background_templates,omitempty"`
+	LeadingDiamond      string         `json:"leading_diamond,omitempty"`
+	TrailingDiamond     string         `json:"trailing_diamond,omitempty"`
+	Template            string         `json:"template,omitempty"`
+	Templates           template.List  `json:"templates,omitempty"`
+	TemplatesLogic      template.Logic `json:"templates_logic,omitempty"`
+	Properties          properties.Map `json:"properties,omitempty"`
+	Interactive         bool           `json:"interactive,omitempty"`
 
 	writer          SegmentWriter
 	Enabled         bool `json:"-"`
@@ -89,6 +90,8 @@ const (
 	CF SegmentType = "cf"
 	// Cloud Foundry logged in target
 	CFTARGET SegmentType = "cftarget"
+	// CMAKE writes the active cmake version
+	CMAKE SegmentType = "cmake"
 	// CMD writes the output of a shell command
 	CMD SegmentType = "command"
 	// CRYSTAL writes the active crystal version
@@ -103,6 +106,8 @@ const (
 	EXIT SegmentType = "exit"
 	// FLUTTER writes the flutter version
 	FLUTTER SegmentType = "flutter"
+	// FOSSIL writes the fossil status
+	FOSSIL SegmentType = "fossil"
 	// GIT represents the git status and information
 	GIT SegmentType = "git"
 	// GOLANG writes which go version is currently active
@@ -121,6 +126,8 @@ const (
 	KOTLIN SegmentType = "kotlin"
 	// KUBECTL writes the Kubernetes context we're currently in
 	KUBECTL SegmentType = "kubectl"
+	// LUA writes the active lua version
+	LUA SegmentType = "lua"
 	// NBGV writes the nbgv version information
 	NBGV SegmentType = "nbgv"
 	// NIGHTSCOUT is an open source diabetes system
@@ -129,12 +136,16 @@ const (
 	NODE SegmentType = "node"
 	// npm version
 	NPM SegmentType = "npm"
+	// NX writes which Nx version us currently active
+	NX SegmentType = "nx"
 	// OS write os specific icon
 	OS SegmentType = "os"
 	// OWM writes the weather coming from openweatherdata
 	OWM SegmentType = "owm"
 	// PATH represents the current path segment
 	PATH SegmentType = "path"
+	// PERL writes which perl version is currently active
+	PERL SegmentType = "perl"
 	// PHP writes which php version is currently active
 	PHP SegmentType = "php"
 	// PLASTIC represents the plastic scm status and information
@@ -161,6 +172,8 @@ const (
 	SPOTIFY SegmentType = "spotify"
 	// STRAVA is a sports activity tracker
 	STRAVA SegmentType = "strava"
+	// Subversion segment
+	SVN SegmentType = "svn"
 	// SWIFT writes the active swift version
 	SWIFT SegmentType = "swift"
 	// SYSTEMINFO writes system information (memory, cpu, load)
@@ -179,6 +192,8 @@ const (
 	WIFI SegmentType = "wifi"
 	// WINREG queries the Windows registry.
 	WINREG SegmentType = "winreg"
+	// WITHINGS queries the Withings API.
+	WITHINGS SegmentType = "withings"
 	// YTM writes YouTube Music information and status
 	YTM SegmentType = "ytm"
 )
@@ -233,14 +248,14 @@ func (segment *Segment) shouldInvokeWithTip(tip string) bool {
 
 func (segment *Segment) foreground() string {
 	if len(segment.foregroundCache) == 0 {
-		segment.foregroundCache = segment.ForegroundTemplates.Resolve(segment.writer, segment.env, segment.Foreground)
+		segment.foregroundCache = segment.ForegroundTemplates.FirstMatch(segment.writer, segment.env, segment.Foreground)
 	}
 	return segment.foregroundCache
 }
 
 func (segment *Segment) background() string {
 	if len(segment.backgroundCache) == 0 {
-		segment.backgroundCache = segment.BackgroundTemplates.Resolve(segment.writer, segment.env, segment.Background)
+		segment.backgroundCache = segment.BackgroundTemplates.FirstMatch(segment.writer, segment.env, segment.Background)
 	}
 	return segment.backgroundCache
 }
@@ -259,11 +274,13 @@ func (segment *Segment) mapSegmentWithWriter(env environment.Environment) error 
 		CFTARGET:      &segments.CfTarget{},
 		CMD:           &segments.Cmd{},
 		CRYSTAL:       &segments.Crystal{},
+		CMAKE:         &segments.Cmake{},
 		DART:          &segments.Dart{},
 		DOTNET:        &segments.Dotnet{},
 		EXECUTIONTIME: &segments.Executiontime{},
 		EXIT:          &segments.Exit{},
 		FLUTTER:       &segments.Flutter{},
+		FOSSIL:        &segments.Fossil{},
 		GIT:           &segments.Git{},
 		GOLANG:        &segments.Golang{},
 		HASKELL:       &segments.Haskell{},
@@ -273,13 +290,16 @@ func (segment *Segment) mapSegmentWithWriter(env environment.Environment) error 
 		JULIA:         &segments.Julia{},
 		KOTLIN:        &segments.Kotlin{},
 		KUBECTL:       &segments.Kubectl{},
+		LUA:           &segments.Lua{},
 		NBGV:          &segments.Nbgv{},
 		NIGHTSCOUT:    &segments.Nightscout{},
 		NODE:          &segments.Node{},
 		NPM:           &segments.Npm{},
+		NX:            &segments.Nx{},
 		OS:            &segments.Os{},
 		OWM:           &segments.Owm{},
 		PATH:          &segments.Path{},
+		PERL:          &segments.Perl{},
 		PHP:           &segments.Php{},
 		PLASTIC:       &segments.Plastic{},
 		POSHGIT:       &segments.PoshGit{},
@@ -293,6 +313,7 @@ func (segment *Segment) mapSegmentWithWriter(env environment.Environment) error 
 		SHELL:         &segments.Shell{},
 		SPOTIFY:       &segments.Spotify{},
 		STRAVA:        &segments.Strava{},
+		SVN:           &segments.Svn{},
 		SWIFT:         &segments.Swift{},
 		SYSTEMINFO:    &segments.SystemInfo{},
 		TERRAFORM:     &segments.Terraform{},
@@ -302,6 +323,7 @@ func (segment *Segment) mapSegmentWithWriter(env environment.Environment) error 
 		WAKATIME:      &segments.Wakatime{},
 		WIFI:          &segments.Wifi{},
 		WINREG:        &segments.WindowsRegistry{},
+		WITHINGS:      &segments.Withings{},
 		YTM:           &segments.Ytm{},
 	}
 	if segment.Properties == nil {
@@ -316,13 +338,21 @@ func (segment *Segment) mapSegmentWithWriter(env environment.Environment) error 
 }
 
 func (segment *Segment) string() string {
+	var templatesResult string
+	if !segment.Templates.Empty() {
+		templatesResult = segment.Templates.Resolve(segment.writer, segment.env, "", segment.TemplatesLogic)
+		if len(templatesResult) != 0 && len(segment.Template) == 0 {
+			return templatesResult
+		}
+	}
 	if len(segment.Template) == 0 {
 		segment.Template = segment.writer.Template()
 	}
 	tmpl := &template.Text{
-		Template: segment.Template,
-		Context:  segment.writer,
-		Env:      segment.env,
+		Template:        segment.Template,
+		Context:         segment.writer,
+		Env:             segment.env,
+		TemplatesResult: templatesResult,
 	}
 	text, err := tmpl.Render()
 	if err != nil {

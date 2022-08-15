@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-async function getStravaToken(code) {
+async function getToken(code) {
   const params = {
     client_id: process.env['STRAVA_CLIENT_ID'],
     client_secret: process.env['STRAVA_CLIENT_SECRET'],
@@ -16,7 +16,7 @@ async function getStravaToken(code) {
   };
 }
 
-async function refreshStravaToken(refresh_token) {
+async function refreshToken(refresh_token) {
   const params = {
     client_id: process.env['STRAVA_CLIENT_ID'],
     client_secret: process.env['STRAVA_CLIENT_SECRET'],
@@ -33,6 +33,6 @@ async function refreshStravaToken(refresh_token) {
 }
 
 module.exports = {
-  getStravaToken: getStravaToken,
-  refreshStravaToken: refreshStravaToken,
+  getToken: getToken,
+  refreshToken: refreshToken,
 }

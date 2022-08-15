@@ -11,6 +11,10 @@ Before validating anything, make sure you're on the [latest version][latest] of 
 
 ### The prompt is slow (delay in showing the prompt between commands)
 
+:::tip Windows
+Make sure Windows Defender, or your AntiVirus, has an exclusion [configured][exclusion].
+:::
+
 <Tabs
   defaultValue="powershell"
   groupId="shell"
@@ -175,7 +179,9 @@ Refer [this page on ArchWiki][arch-terminfo].
 If you are on Windows, use Windows Terminal. It closely copies the `xterm-256color` capabilities.
 See the [PowerShell docs on terminal support][ps-ansi-docs] and [this GitHub comment][xterm-gh-comment].
 
-## The term xx/oh-my-posh.exe is not recognized as a name of a cmdlet
+### The term '.../oh-my-posh.exe' is not recognized as a name of a cmdlet...
+
+For example:
 
 ```
 &: The term 'C:/Users/TommiGr├╢nlund/.oh-my-posh/oh-my-posh.exe' is not recognized as a name of a cmdlet, function, script file, or executable program.
@@ -189,6 +195,7 @@ to the top of your `$PROFILE`:
 $OutputEncoding = [console]::InputEncoding = [console]::OutputEncoding = New-Object System.Text.UTF8Encoding
 ```
 
+[exclusion]: https://support.microsoft.com/en-us/windows/add-an-exclusion-to-windows-security-811816c0-4dfd-af4a-47e4-c301afe13b26
 [arch-terminfo]: https://wiki.archlinux.org/title/Bash/Prompt_customization#Terminfo_escape_sequences
 [ps-ansi-docs]: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_ansi_terminals?view=powershell-7.2
 [xterm-gh-comment]: https://github.com/microsoft/terminal/issues/6045#issuecomment-631743728
@@ -198,7 +205,7 @@ $OutputEncoding = [console]::InputEncoding = [console]::OutputEncoding = New-Obj
 [wt-glyph]: https://github.com/microsoft/terminal/issues/3546
 [wt-glyphs]: https://github.com/microsoft/terminal/issues?q=is%3Aissue+is%3Aopen+unicode+width
 [nf]: https://www.nerdfonts.com/
-[font]: /docs/configuration/fonts
+[font]: /docs/installation/fonts
 [jb-icons]: https://youtrack.jetbrains.com/issue/IDEA-248010
 [migrating]: /docs/migrating
 [wt-vim]: https://github.com/microsoft/terminal/issues/3794

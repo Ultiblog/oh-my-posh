@@ -43,7 +43,7 @@ This command is used to get the value of the following variables:
 		case "shell":
 			fmt.Println(env.Shell())
 		case "accent":
-			rgb, err := color.GetAccentColor()
+			rgb, err := color.GetAccentColor(env)
 			if err != nil {
 				fmt.Println("error getting accent color:", err.Error())
 				return
@@ -56,6 +56,6 @@ This command is used to get the value of the following variables:
 	},
 }
 
-func init() { // nolint:gochecknoinits
+func init() { //nolint:gochecknoinits
 	rootCmd.AddCommand(getCmd)
 }

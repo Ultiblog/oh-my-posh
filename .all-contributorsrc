@@ -1228,6 +1228,96 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "antonpiatek",
+      "name": "Anton Piatek",
+      "avatar_url": "https://avatars.githubusercontent.com/u/175077?v=4",
+      "profile": "https://github.com/antonpiatek",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "prodehghan",
+      "name": "Mohammad Dehghan",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1384790?v=4",
+      "profile": "https://careers.stackoverflow.com/dehghan",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "bhagerty",
+      "name": "bhagerty",
+      "avatar_url": "https://avatars.githubusercontent.com/u/7828454?v=4",
+      "profile": "https://github.com/bhagerty",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "CodyScavenger",
+      "name": "Cody Scavenger",
+      "avatar_url": "https://avatars.githubusercontent.com/u/94334877?v=4",
+      "profile": "https://github.com/CodyScavenger",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "FWest98",
+      "name": "Floris Westerman",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1918658?v=4",
+      "profile": "http://fwest98.nl/",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "mjcarman",
+      "name": "Michael Carman",
+      "avatar_url": "https://avatars.githubusercontent.com/u/121028?v=4",
+      "profile": "https://github.com/mjcarman",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "entr0pia",
+      "name": "风沐白",
+      "avatar_url": "https://avatars.githubusercontent.com/u/30486766?v=4",
+      "profile": "https://github.com/entr0pia",
+      "contributions": [
+        "design"
+      ]
+    },
+    {
+      "login": "schallm",
+      "name": "Michael T. Schall",
+      "avatar_url": "https://avatars.githubusercontent.com/u/331167?v=4",
+      "profile": "https://github.com/schallm",
+      "contributions": [
+        "design"
+      ]
+    },
+    {
+      "login": "craiglpeters",
+      "name": "Craig Peters",
+      "avatar_url": "https://avatars.githubusercontent.com/u/9445180?v=4",
+      "profile": "https://github.com/craiglpeters",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "dorian-li",
+      "name": "Dongyu Li",
+      "avatar_url": "https://avatars.githubusercontent.com/u/49279922?v=4",
+      "profile": "https://github.com/dorian-li",
+      "contributions": [
+        "design"
+      ]
     }
   ],
   "contributorsPerLine": 7,

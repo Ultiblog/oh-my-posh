@@ -1,8 +1,10 @@
 package mock
 
 import (
+	"io"
 	"io/fs"
 	"oh-my-posh/environment"
+	"oh-my-posh/environment/battery"
 	"time"
 
 	mock "github.com/stretchr/testify/mock"
@@ -122,9 +124,9 @@ func (env *MockedEnvironment) Flags() *environment.Flags {
 	return arguments.Get(0).(*environment.Flags)
 }
 
-func (env *MockedEnvironment) BatteryState() (*environment.BatteryInfo, error) {
+func (env *MockedEnvironment) BatteryState() (*battery.Info, error) {
 	args := env.Called()
-	return args.Get(0).(*environment.BatteryInfo), args.Error(1)
+	return args.Get(0).(*battery.Info), args.Error(1)
 }
 
 func (env *MockedEnvironment) Shell() string {
@@ -142,7 +144,7 @@ func (env *MockedEnvironment) WindowsRegistryKeyValue(path string) (*environment
 	return args.Get(0).(*environment.WindowsRegistryValue), args.Error(1)
 }
 
-func (env *MockedEnvironment) HTTPRequest(url string, timeout int, requestModifiers ...environment.HTTPRequestModifier) ([]byte, error) {
+func (env *MockedEnvironment) HTTPRequest(url string, body io.Reader, timeout int, requestModifiers ...environment.HTTPRequestModifier) ([]byte, error) {
 	args := env.Called(url)
 	return args.Get(0).([]byte), args.Error(1)
 }
@@ -216,9 +218,18 @@ func (env *MockedEnvironment) TemplateCache() *environment.TemplateCache {
 	return args.Get(0).(*environment.TemplateCache)
 }
 
+func (env *MockedEnvironment) LoadTemplateCache() {
+	_ = env.Called()
+}
+
 func (env *MockedEnvironment) MockGitCommand(dir, returnValue string, args ...string) {
 	args = append([]string{"-C", dir, "--no-optional-locks", "-c", "core.quotepath=false", "-c", "color.status=false"}, args...)
 	env.On("RunCommand", "git", args).Return(returnValue, nil)
+}
+
+func (env *MockedEnvironment) MockSvnCommand(dir, returnValue string, args ...string) {
+	args = append([]string{"-C", dir, "--no-optional-locks", "-c", "core.quotepath=false", "-c", "color.status=false"}, args...)
+	env.On("RunCommand", "svn", args).Return(returnValue, nil)
 }
 
 func (env *MockedEnvironment) HasFileInParentDirs(pattern string, depth uint) bool {

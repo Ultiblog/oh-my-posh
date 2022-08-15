@@ -6,6 +6,7 @@ import (
 	"oh-my-posh/properties"
 	"oh-my-posh/regex"
 	"oh-my-posh/template"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -107,8 +108,23 @@ func (pt *Path) Enabled() bool {
 	return true
 }
 
+func (pt *Path) Parent() string {
+	if pt.pwd == pt.env.Home() {
+		return ""
+	}
+	parent := filepath.Dir(pt.pwd)
+	if pt.pwd == parent {
+		return ""
+	}
+	separator := pt.env.PathSeparator()
+	if parent == pt.rootLocation() || parent == separator {
+		separator = ""
+	}
+	return pt.replaceMappedLocations(parent) + separator
+}
+
 func (pt *Path) formatWindowsDrive(pwd string) string {
-	if pt.env.GOOS() != environment.WindowsPlatform || !strings.HasSuffix(pwd, ":") {
+	if pt.env.GOOS() != environment.WINDOWS || !strings.HasSuffix(pwd, ":") {
 		return pwd
 	}
 	return pwd + "\\"
@@ -328,7 +344,7 @@ func (pt *Path) normalize(inputPath string) string {
 	}
 	normalized = strings.ReplaceAll(normalized, "\\", "/")
 	goos := pt.env.GOOS()
-	if goos == environment.WindowsPlatform || goos == environment.DarwinPlatform {
+	if goos == environment.WINDOWS || goos == environment.DARWIN {
 		normalized = strings.ToLower(normalized)
 	}
 	return normalized

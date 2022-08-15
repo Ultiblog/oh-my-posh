@@ -17,9 +17,10 @@ const (
 )
 
 type Text struct {
-	Template string
-	Context  interface{}
-	Env      environment.Environment
+	Template        string
+	Context         interface{}
+	Env             environment.Environment
+	TemplatesResult string
 }
 
 type Data interface{}
@@ -29,10 +30,12 @@ type Context struct {
 
 	// Simple container to hold ANY object
 	Data
+	Templates string
 }
 
 func (c *Context) init(t *Text) {
 	c.Data = t.Context
+	c.Templates = t.TemplatesResult
 	if cache := t.Env.TemplateCache(); cache != nil {
 		c.TemplateCache = cache
 		return
@@ -41,7 +44,7 @@ func (c *Context) init(t *Text) {
 
 func (t *Text) Render() (string, error) {
 	t.cleanTemplate()
-	tmpl, err := template.New("title").Funcs(funcMap()).Parse(t.Template)
+	tmpl, err := template.New(t.Template).Funcs(funcMap()).Parse(t.Template)
 	if err != nil {
 		t.Env.Log(environment.Error, "Render", err.Error())
 		return "", errors.New(InvalidTemplate)
@@ -77,13 +80,31 @@ func (t *Text) cleanTemplate() {
 		*knownVariables = append(*knownVariables, splitted[0])
 		return splitted[0], true
 	}
-	knownVariables := []string{"Root", "PWD", "Folder", "Shell", "ShellVersion", "UserName", "HostName", "Env", "Data", "Code", "OS", "WSL", "Segments"}
-	matches := regex.FindAllNamedRegexMatch(`(?: |{|\()(?P<var>(\.[a-zA-Z_][a-zA-Z0-9]*)+)`, t.Template)
+
+	knownVariables := []string{
+		"Root",
+		"PWD",
+		"Folder",
+		"Shell",
+		"ShellVersion",
+		"UserName",
+		"HostName",
+		"Env",
+		"Data",
+		"Code",
+		"OS",
+		"WSL",
+		"Segments",
+		"Templates",
+	}
+	matches := regex.FindAllNamedRegexMatch(`(?: |{|\()(?P<VAR>(\.[a-zA-Z_][a-zA-Z0-9]*)+)`, t.Template)
 	for _, match := range matches {
-		if variable, OK := unknownVariable(match["var"], &knownVariables); OK {
+		if variable, OK := unknownVariable(match["VAR"], &knownVariables); OK {
 			pattern := fmt.Sprintf(`\.%s\b`, variable)
 			dataVar := fmt.Sprintf(".Data.%s", variable)
 			t.Template = regex.ReplaceAllString(pattern, t.Template, dataVar)
 		}
 	}
+	// allow literal dots in template
+	t.Template = strings.ReplaceAll(t.Template, `\.`, ".")
 }

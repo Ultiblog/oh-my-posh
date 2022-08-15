@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/alecthomas/assert"
+	mock2 "github.com/stretchr/testify/mock"
 )
 
 func TestPythonTemplate(t *testing.T) {
@@ -65,12 +66,21 @@ func TestPythonTemplate(t *testing.T) {
 			Template:       "{{ if ne .Venv \"default\" }}{{ .Venv }} {{ end }}{{ .Major }}.{{ .Minor }}",
 			ResolveSymlink: ResolveSymlink{Path: "/home/user.pyenv/versions/3.8.8", Err: nil},
 		},
+		{
+			Case:           "Pyenv virtual env version name",
+			FetchVersion:   true,
+			VirtualEnvName: "demo",
+			Expected:       "demo 3.8.4",
+			PythonPath:     "/home/user/.pyenv/shims/python",
+			Template:       "{{ .Venv }} {{ .Full }}",
+			ResolveSymlink: ResolveSymlink{Path: "/home/user/.pyenv/versions/demo", Err: nil},
+		},
 	}
 
 	for _, tc := range cases {
 		env := new(mock.MockedEnvironment)
 		env.On("HasCommand", "python").Return(true)
-		env.On("CommandPath", "mock.Anything").Return(tc.PythonPath)
+		env.On("CommandPath", mock2.Anything).Return(tc.PythonPath)
 		env.On("RunCommand", "python", []string{"--version"}).Return("Python 3.8.4", nil)
 		env.On("RunCommand", "pyenv", []string{"version-name"}).Return(tc.VirtualEnvName, nil)
 		env.On("HasFiles", "*.py").Return(true)
@@ -81,7 +91,7 @@ func TestPythonTemplate(t *testing.T) {
 		env.On("PathSeparator").Return("")
 		env.On("Pwd").Return("/usr/home/project")
 		env.On("Home").Return("/usr/home")
-		env.On("ResolveSymlink", "mock.Anything").Return(tc.ResolveSymlink.Path, tc.ResolveSymlink.Err)
+		env.On("ResolveSymlink", mock2.Anything).Return(tc.ResolveSymlink.Path, tc.ResolveSymlink.Err)
 		props := properties.Map{
 			properties.FetchVersion: tc.FetchVersion,
 			UsePythonVersionFile:    true,

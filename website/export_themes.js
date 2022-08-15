@@ -18,6 +18,10 @@ function newThemeConfig(rpromptOffset = 40, cursorPadding = 30, author = "", bgC
   return config;
 }
 
+function isValidTheme(theme) {
+  return theme.endsWith('.omp.json') || theme.endsWith('.omp.toml') || theme.endsWith('.omp.yaml')
+}
+
 let themeConfigOverrrides = new Map();
 themeConfigOverrrides.set('agnoster.omp.json', newThemeConfig(40, 40));
 themeConfigOverrrides.set('agnosterplus.omp.json', newThemeConfig(80));
@@ -33,6 +37,7 @@ themeConfigOverrrides.set('hotstick.minimal.omp.json', newThemeConfig(40, 10));
 themeConfigOverrrides.set('hunk.omp.json', newThemeConfig(40, 15, 'Paris Qian'));
 themeConfigOverrrides.set('huvix.omp.json', newThemeConfig(40, 70));
 themeConfigOverrrides.set('jandedobbeleer.omp.json', newThemeConfig(40, 15));
+themeConfigOverrrides.set('kushal.omp.json', newThemeConfig(90, 30, 'Kushal-Chandar'));
 themeConfigOverrrides.set('lambda.omp.json', newThemeConfig(40, 40));
 themeConfigOverrrides.set('marcduiker.omp.json', newThemeConfig(0, 40));
 themeConfigOverrrides.set('material.omp.json', newThemeConfig(40, 40));
@@ -52,8 +57,8 @@ themeConfigOverrrides.set('space.omp.json', newThemeConfig(40, 40));
 themeConfigOverrrides.set('spaceship.omp.json', newThemeConfig(40, 40));
 themeConfigOverrrides.set('star.omp.json', newThemeConfig(40, 70));
 themeConfigOverrrides.set('stelbent.minimal.omp.json', newThemeConfig(70));
-themeConfigOverrrides.set('tonybaloney.omp.json', newThemeConfig(0,40));
-themeConfigOverrrides.set('unicorn.omp.json', newThemeConfig(0,40));
+themeConfigOverrrides.set('tonybaloney.omp.json', newThemeConfig(0, 40));
+themeConfigOverrrides.set('unicorn.omp.json', newThemeConfig(0, 40));
 themeConfigOverrrides.set('ys.omp.json', newThemeConfig(40, 100));
 themeConfigOverrrides.set('zash.omp.json', newThemeConfig(40, 40));
 
@@ -62,7 +67,7 @@ themeConfigOverrrides.set('zash.omp.json', newThemeConfig(40, 40));
   let links = new Array();
 
   for (const theme of themes) {
-    if (!theme.endsWith('.omp.json')) {
+    if (!isValidTheme(theme)) {
       continue;
     }
     const configPath = path.join(themesConfigDir, theme);
@@ -87,12 +92,11 @@ themeConfigOverrrides.set('zash.omp.json', newThemeConfig(40, 40));
       continue;
     }
 
-    const image = theme.replace('.omp.json', '.png');
+    const themeName = theme.slice(0, -9);
+    const image = themeName + '.png';
     const toPath = path.join(themesStaticDir, image);
 
     await fs.promises.rename(image, toPath);
-
-    const themeName = theme.replace('.omp.json', '');
 
     const themeData = `
 ### [${themeName}]

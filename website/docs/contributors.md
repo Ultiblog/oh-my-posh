@@ -183,6 +183,18 @@ Thanks goes to these wonderful people ([emoji key][acek]):
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/the-eduardo"><img src="https://avatars.githubusercontent.com/u/40523695?v=4?s=100" width="100px;" alt=""/><br /><sub><b>the-eduardo</b></sub></a><br /><a href="https://github.com/JanDeDobbeleer/oh-my-posh/commits?author=the-eduardo" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/antonpiatek"><img src="https://avatars.githubusercontent.com/u/175077?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Anton Piatek</b></sub></a><br /><a href="https://github.com/JanDeDobbeleer/oh-my-posh/commits?author=antonpiatek" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://careers.stackoverflow.com/dehghan"><img src="https://avatars.githubusercontent.com/u/1384790?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Mohammad Dehghan</b></sub></a><br /><a href="https://github.com/JanDeDobbeleer/oh-my-posh/commits?author=prodehghan" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/bhagerty"><img src="https://avatars.githubusercontent.com/u/7828454?v=4?s=100" width="100px;" alt=""/><br /><sub><b>bhagerty</b></sub></a><br /><a href="https://github.com/JanDeDobbeleer/oh-my-posh/commits?author=bhagerty" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/CodyScavenger"><img src="https://avatars.githubusercontent.com/u/94334877?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Cody Scavenger</b></sub></a><br /><a href="https://github.com/JanDeDobbeleer/oh-my-posh/commits?author=CodyScavenger" title="Documentation">📖</a></td>
+    <td align="center"><a href="http://fwest98.nl/"><img src="https://avatars.githubusercontent.com/u/1918658?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Floris Westerman</b></sub></a><br /><a href="https://github.com/JanDeDobbeleer/oh-my-posh/commits?author=FWest98" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/mjcarman"><img src="https://avatars.githubusercontent.com/u/121028?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Michael Carman</b></sub></a><br /><a href="https://github.com/JanDeDobbeleer/oh-my-posh/commits?author=mjcarman" title="Code">💻</a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/entr0pia"><img src="https://avatars.githubusercontent.com/u/30486766?v=4?s=100" width="100px;" alt=""/><br /><sub><b>风沐白</b></sub></a><br /><a href="#design-entr0pia" title="Design">🎨</a></td>
+    <td align="center"><a href="https://github.com/schallm"><img src="https://avatars.githubusercontent.com/u/331167?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Michael T. Schall</b></sub></a><br /><a href="#design-schallm" title="Design">🎨</a></td>
+    <td align="center"><a href="https://github.com/craiglpeters"><img src="https://avatars.githubusercontent.com/u/9445180?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Craig Peters</b></sub></a><br /><a href="https://github.com/JanDeDobbeleer/oh-my-posh/commits?author=craiglpeters" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/dorian-li"><img src="https://avatars.githubusercontent.com/u/49279922?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Dongyu Li</b></sub></a><br /><a href="#design-dorian-li" title="Design">🎨</a></td>
   </tr>
 </table>
 

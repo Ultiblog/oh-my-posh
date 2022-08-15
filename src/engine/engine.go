@@ -40,7 +40,10 @@ func (e *Engine) string() string {
 	return e.console.String()
 }
 
-func (e *Engine) canWriteRPrompt() bool {
+func (e *Engine) canWriteRPrompt(rprompt bool) bool {
+	if rprompt && (e.rprompt == "" || e.Plain) {
+		return false
+	}
 	consoleWidth, err := e.Env.TerminalWidth()
 	if err != nil || consoleWidth == 0 {
 		return true
@@ -52,7 +55,10 @@ func (e *Engine) canWriteRPrompt() bool {
 		overflow := promptWidth % consoleWidth
 		availableSpace = consoleWidth - overflow
 	}
-	promptBreathingRoom := 30
+	promptBreathingRoom := 5
+	if rprompt {
+		promptBreathingRoom = 30
+	}
 	canWrite := (availableSpace - e.rpromptLength) >= promptBreathingRoom
 	return canWrite
 }
@@ -68,12 +74,31 @@ func (e *Engine) PrintPrimary() string {
 	if e.Config.FinalSpace {
 		e.write(" ")
 	}
-	if !e.Config.OSC99 {
-		return e.print()
+	e.printPWD()
+	return e.print()
+}
+
+func (e *Engine) printPWD() {
+	if len(e.Config.PWD) == 0 && !e.Config.OSC99 {
+		return
 	}
 	cwd := e.Env.Pwd()
-	e.writeANSI(e.Ansi.ConsolePwd(cwd))
-	return e.print()
+	// Backwards compatibility for deprecated OSC99
+	if e.Config.OSC99 {
+		e.writeANSI(e.Ansi.ConsolePwd(color.OSC99, "", cwd))
+		return
+	}
+	// Allow template logic to define when to enable the PWD (when supported)
+	tmpl := &template.Text{
+		Template: e.Config.PWD,
+		Env:      e.Env,
+	}
+	pwdType, err := tmpl.Render()
+	if err != nil || len(pwdType) == 0 {
+		return
+	}
+	host, _ := e.Env.Host()
+	e.writeANSI(e.Ansi.ConsolePwd(pwdType, host, cwd))
 }
 
 func (e *Engine) newline() {
@@ -86,7 +111,7 @@ func (e *Engine) shouldFill(block *Block, length int) (string, bool) {
 		return "", false
 	}
 	terminalWidth, err := e.Env.TerminalWidth()
-	if err != nil && terminalWidth == 0 {
+	if err != nil || terminalWidth == 0 {
 		return "", false
 	}
 	padLength := terminalWidth - e.currentLineLength - length
@@ -104,9 +129,18 @@ func (e *Engine) shouldFill(block *Block, length int) (string, bool) {
 }
 
 func (e *Engine) renderBlock(block *Block) {
+	defer func() {
+		// Due to a bug in Powershell, the end of the line needs to be cleared.
+		// If this doesn't happen, the portion after the prompt gets colored in the background
+		// color of the line above the new input line. Clearing the line fixes this,
+		// but can hopefully one day be removed when this is resolved natively.
+		if e.Env.Shell() == shell.PWSH || e.Env.Shell() == shell.PWSH5 {
+			e.writeANSI(e.Ansi.ClearAfter())
+		}
+	}()
 	// when in bash, for rprompt blocks we need to write plain
 	// and wrap in escaped mode or the prompt will not render correctly
-	if block.Type == RPrompt && e.Env.Shell() == shell.BASH {
+	if e.Env.Shell() == shell.BASH && (block.Type == RPrompt || block.Alignment == Right) {
 		block.InitPlain(e.Env, e.Config)
 	} else {
 		block.Init(e.Env, e.Writer, e.Ansi)
@@ -127,35 +161,56 @@ func (e *Engine) renderBlock(block *Block) {
 		if block.VerticalOffset != 0 {
 			e.writeANSI(e.Ansi.ChangeLine(block.VerticalOffset))
 		}
-		switch block.Alignment {
-		case Right:
-			text, length := block.RenderSegments()
-			if padText, OK := e.shouldFill(block, length); OK {
-				e.write(padText)
-			}
-			e.writeANSI(e.Ansi.CarriageForward())
-			e.writeANSI(e.Ansi.GetCursorForRightWrite(length, block.HorizontalOffset))
-			e.currentLineLength = 0
-			e.write(text)
-		case Left:
+
+		if block.Alignment == Left {
 			text, length := block.RenderSegments()
 			e.currentLineLength += length
 			e.write(text)
+			return
 		}
-	case RPrompt:
+
+		if block.Alignment != Right {
+			return
+		}
+
 		text, length := block.RenderSegments()
 		e.rpromptLength = length
-		if e.Env.Shell() == shell.BASH {
-			text = e.Ansi.FormatText(text)
+
+		if !e.canWriteRPrompt(false) {
+			switch block.Overflow {
+			case Break:
+				e.newline()
+			case Hide:
+				// make sure to fill if needed
+				if padText, OK := e.shouldFill(block, 0); OK {
+					e.write(padText)
+				}
+				return
+			}
 		}
-		e.rprompt = text
-	}
-	// Due to a bug in Powershell, the end of the line needs to be cleared.
-	// If this doesn't happen, the portion after the prompt gets colored in the background
-	// color of the line above the new input line. Clearing the line fixes this,
-	// but can hopefully one day be removed when this is resolved natively.
-	if e.Env.Shell() == shell.PWSH || e.Env.Shell() == shell.PWSH5 {
-		e.writeANSI(e.Ansi.ClearAfter())
+
+		if padText, OK := e.shouldFill(block, length); OK {
+			// in this case we can print plain
+			e.write(padText)
+			e.write(text)
+			return
+		}
+		// this can contain ANSI escape sequences
+		ansi := e.Ansi
+		if e.Env.Shell() == shell.BASH {
+			ansi = &color.Ansi{}
+			ansi.InitPlain()
+		}
+		prompt := ansi.CarriageForward()
+		prompt += ansi.GetCursorForRightWrite(length, block.HorizontalOffset)
+		prompt += text
+		e.currentLineLength = 0
+		if e.Env.Shell() == shell.BASH {
+			prompt = e.Ansi.FormatText(prompt)
+		}
+		e.write(prompt)
+	case RPrompt:
+		e.rprompt, e.rpromptLength = block.RenderSegments()
 	}
 }
 
@@ -213,8 +268,8 @@ func (e *Engine) print() string {
 		prompt := fmt.Sprintf("PS1=\"%s\"", strings.ReplaceAll(e.string(), `"`, `\"`))
 		prompt += fmt.Sprintf("\nRPROMPT=\"%s\"", e.rprompt)
 		return prompt
-	case shell.PWSH, shell.PWSH5, shell.BASH, shell.PLAIN, shell.NU:
-		if e.rprompt == "" || !e.canWriteRPrompt() || e.Plain {
+	case shell.PWSH, shell.PWSH5, shell.PLAIN, shell.NU:
+		if !e.canWriteRPrompt(true) {
 			break
 		}
 		e.write(e.Ansi.SaveCursorPosition())
@@ -222,6 +277,21 @@ func (e *Engine) print() string {
 		e.write(e.Ansi.GetCursorForRightWrite(e.rpromptLength, 0))
 		e.write(e.rprompt)
 		e.write(e.Ansi.RestoreCursorPosition())
+	case shell.BASH:
+		if !e.canWriteRPrompt(true) {
+			break
+		}
+		// in bash, the entire rprompt needs to be escaped for the prompt to be interpreted correctly
+		// see https://github.com/JanDeDobbeleer/oh-my-posh/pull/2398
+		ansi := &color.Ansi{}
+		ansi.InitPlain()
+		prompt := ansi.SaveCursorPosition()
+		prompt += ansi.CarriageForward()
+		prompt += ansi.GetCursorForRightWrite(e.rpromptLength, 0)
+		prompt += e.rprompt
+		prompt += ansi.RestoreCursorPosition()
+		prompt = e.Ansi.FormatText(prompt)
+		e.write(prompt)
 	}
 	return e.string()
 }
@@ -284,6 +354,8 @@ const (
 )
 
 func (e *Engine) PrintExtraPrompt(promptType ExtraPromptType) string {
+	// populate env with latest context
+	e.Env.LoadTemplateCache()
 	var prompt *Segment
 	switch promptType {
 	case Debug:
@@ -304,7 +376,7 @@ func (e *Engine) PrintExtraPrompt(promptType ExtraPromptType) string {
 		if len(template) != 0 {
 			return template
 		}
-		switch promptType { // nolint: exhaustive
+		switch promptType { //nolint: exhaustive
 		case Debug:
 			return "[DBG]: "
 		case Transient:
@@ -323,8 +395,8 @@ func (e *Engine) PrintExtraPrompt(promptType ExtraPromptType) string {
 	if err != nil {
 		promptText = err.Error()
 	}
-	foreground := prompt.ForegroundTemplates.Resolve(nil, e.Env, prompt.Foreground)
-	background := prompt.BackgroundTemplates.Resolve(nil, e.Env, prompt.Background)
+	foreground := prompt.ForegroundTemplates.FirstMatch(nil, e.Env, prompt.Foreground)
+	background := prompt.BackgroundTemplates.FirstMatch(nil, e.Env, prompt.Background)
 	e.Writer.SetColors(background, foreground)
 	e.Writer.Write(background, foreground, promptText)
 	switch e.Env.Shell() {

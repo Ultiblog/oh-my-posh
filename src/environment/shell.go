@@ -3,13 +3,16 @@ package environment
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"oh-my-posh/environment/battery"
+	"oh-my-posh/environment/cmd"
 	"oh-my-posh/regex"
 	"os"
 	"os/exec"
@@ -20,21 +23,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/distatus/battery"
 	process "github.com/shirou/gopsutil/v3/process"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
 
 const (
-	Unknown         = "unknown"
-	WindowsPlatform = "windows"
-	DarwinPlatform  = "darwin"
-	LinuxPlatform   = "linux"
+	UNKNOWN = "unknown"
+	WINDOWS = "windows"
+	DARWIN  = "darwin"
+	LINUX   = "linux"
 )
 
 var (
-	lock = sync.RWMutex{}
+	lock          = sync.RWMutex{}
+	TEMPLATECACHE = fmt.Sprintf("template_cache_%d", os.Getppid())
 )
 
 type Flags struct {
@@ -62,12 +65,6 @@ func (e *CommandError) Error() string {
 	return e.Err
 }
 
-type NoBatteryError struct{}
-
-func (m *NoBatteryError) Error() string {
-	return "no battery"
-}
-
 type FileInfo struct {
 	ParentFolder string
 	Path         string
@@ -84,19 +81,20 @@ type Cache interface {
 
 type HTTPRequestModifier func(request *http.Request)
 
-type WindowsRegistryValueType int
+type WindowsRegistryValueType string
 
 const (
-	RegQword WindowsRegistryValueType = iota
-	RegDword
-	RegString
+	DWORD  = "DWORD"
+	QWORD  = "QWORD"
+	BINARY = "BINARY"
+	STRING = "STRING"
 )
 
 type WindowsRegistryValue struct {
 	ValueType WindowsRegistryValueType
-	Qword     uint64
-	Dword     uint32
-	Str       string
+	DWord     uint64
+	QWord     uint64
+	String    string
 }
 
 type WifiType string
@@ -140,11 +138,6 @@ func (t *TemplateCache) AddSegmentData(key string, value interface{}) {
 	t.Segments[key] = value
 }
 
-type BatteryInfo struct {
-	Percentage int
-	State      battery.State
-}
-
 type Environment interface {
 	Getenv(key string) string
 	Pwd() string
@@ -173,10 +166,10 @@ type Environment interface {
 	RunShellCommand(shell, command string) string
 	ExecutionTime() float64
 	Flags() *Flags
-	BatteryState() (*BatteryInfo, error)
+	BatteryState() (*battery.Info, error)
 	QueryWindowTitles(processName, windowTitleRegex string) (string, error)
 	WindowsRegistryKeyValue(path string) (*WindowsRegistryValue, error)
-	HTTPRequest(url string, timeout int, requestModifiers ...HTTPRequestModifier) ([]byte, error)
+	HTTPRequest(url string, body io.Reader, timeout int, requestModifiers ...HTTPRequestModifier) ([]byte, error)
 	IsWsl() bool
 	IsWsl2() bool
 	StackCount() int
@@ -190,6 +183,7 @@ type Environment interface {
 	ConvertToWindowsPath(path string) string
 	WifiNetwork() (*WifiInfo, error)
 	TemplateCache() *TemplateCache
+	LoadTemplateCache()
 	Log(logType LogType, funcName, message string)
 	Trace(start time.Time, function string, args ...string)
 }
@@ -203,11 +197,11 @@ func (c *commandCache) set(command, path string) {
 }
 
 func (c *commandCache) get(command string) (string, bool) {
-	cmd, found := c.commands.get(command)
+	cacheCommand, found := c.commands.get(command)
 	if !found {
 		return "", false
 	}
-	command, ok := cmd.(string)
+	command, ok := cacheCommand.(string)
 	return command, ok
 }
 
@@ -262,7 +256,7 @@ func (env *ShellEnvironment) resolveConfigPath() {
 	}
 	// Cygwin path always needs the full path as we're on Windows but not really.
 	// Doing filepath actions will convert it to a Windows path and break the init script.
-	if env.Platform() == WindowsPlatform && env.Shell() == "bash" {
+	if env.Platform() == WINDOWS && env.Shell() == "bash" {
 		return
 	}
 	configFile := env.CmdFlags.Config
@@ -281,7 +275,7 @@ func (env *ShellEnvironment) resolveConfigPath() {
 func (env *ShellEnvironment) downloadConfig(location string) error {
 	defer env.Trace(time.Now(), "downloadConfig", location)
 	configPath := filepath.Join(env.CachePath(), "config.omp.json")
-	cfg, err := env.HTTPRequest(location, 5000)
+	cfg, err := env.HTTPRequest(location, nil, 5000)
 	if err != nil {
 		return err
 	}
@@ -425,7 +419,14 @@ func (env *ShellEnvironment) HasFolder(folder string) bool {
 }
 
 func (env *ShellEnvironment) ResolveSymlink(path string) (string, error) {
-	return filepath.EvalSymlinks(path)
+	defer env.Trace(time.Now(), "ResolveSymlink", path)
+	link, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		env.Log(Error, "ResolveSymlink", err.Error())
+		return "", err
+	}
+	env.Log(Debug, "ResolveSymlink", link)
+	return link, nil
 }
 
 func (env *ShellEnvironment) FileContent(file string) string {
@@ -433,7 +434,7 @@ func (env *ShellEnvironment) FileContent(file string) string {
 	if !filepath.IsAbs(file) {
 		file = filepath.Join(env.Pwd(), file)
 	}
-	content, err := ioutil.ReadFile(file)
+	content, err := os.ReadFile(file)
 	if err != nil {
 		env.Log(Error, "FileContent", err.Error())
 		return ""
@@ -494,33 +495,19 @@ func (env *ShellEnvironment) GOOS() string {
 
 func (env *ShellEnvironment) RunCommand(command string, args ...string) (string, error) {
 	defer env.Trace(time.Now(), "RunCommand", append([]string{command}, args...)...)
-	if cmd, ok := env.cmdCache.get(command); ok {
-		command = cmd
+	if cacheCommand, ok := env.cmdCache.get(command); ok {
+		command = cacheCommand
 	}
-	cmd := exec.Command(command, args...)
-	var out bytes.Buffer
-	var err bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &err
-	cmdErr := cmd.Run()
-	if cmdErr != nil {
-		output := err.String()
-		errorStr := fmt.Sprintf("cmd.Start() failed with '%s'", output)
-		env.Log(Error, "RunCommand", errorStr)
-		return output, cmdErr
+	output, err := cmd.Run(command, args...)
+	if err != nil {
+		env.Log(Error, "RunCommand", "cmd.Run() failed")
 	}
-	// some silly commands return 0 and the output is in stderr instead of stdout
-	result := out.String()
-	if len(result) == 0 {
-		result = err.String()
-	}
-	output := strings.TrimSpace(result)
 	env.Log(Debug, "RunCommand", output)
-	return output, nil
+	return output, err
 }
 
 func (env *ShellEnvironment) RunShellCommand(shell, command string) string {
-	defer env.Trace(time.Now(), "RunShellCommand", shell, command)
+	defer env.Trace(time.Now(), "RunShellCommand")
 	if out, err := env.RunCommand(shell, "-c", command); err == nil {
 		return out
 	}
@@ -528,18 +515,21 @@ func (env *ShellEnvironment) RunShellCommand(shell, command string) string {
 }
 
 func (env *ShellEnvironment) CommandPath(command string) string {
-	defer env.Trace(time.Now(), "HasCommand", command)
+	defer env.Trace(time.Now(), "CommandPath", command)
 	if path, ok := env.cmdCache.get(command); ok {
+		env.Log(Debug, "CommandPath", path)
 		return path
 	}
 	path, err := exec.LookPath(command)
 	if err == nil {
 		env.cmdCache.set(command, path)
+		env.Log(Debug, "CommandPath", path)
 		return path
 	}
 	path, err = env.LookWinAppPath(command)
 	if err == nil {
 		env.cmdCache.set(command, path)
+		env.Log(Debug, "CommandPath", path)
 		return path
 	}
 	env.Log(Error, "CommandPath", err.Error())
@@ -547,6 +537,7 @@ func (env *ShellEnvironment) CommandPath(command string) string {
 }
 
 func (env *ShellEnvironment) HasCommand(command string) bool {
+	defer env.Trace(time.Now(), "HasCommand", command)
 	if path := env.CommandPath(command); path != "" {
 		return true
 	}
@@ -581,7 +572,7 @@ func (env *ShellEnvironment) Shell() string {
 	name, err := p.Name()
 	if err != nil {
 		env.Log(Error, "Shell", err.Error())
-		return Unknown
+		return UNKNOWN
 	}
 	if name == "cmd.exe" {
 		p, _ = p.Parent()
@@ -589,28 +580,45 @@ func (env *ShellEnvironment) Shell() string {
 	}
 	if err != nil {
 		env.Log(Error, "Shell", err.Error())
-		return Unknown
+		return UNKNOWN
 	}
 	// Cache the shell value to speed things up.
 	env.CmdFlags.Shell = strings.Trim(strings.TrimSuffix(name, ".exe"), " ")
 	return env.CmdFlags.Shell
 }
 
-func (env *ShellEnvironment) HTTPRequest(targetURL string, timeout int, requestModifiers ...HTTPRequestModifier) ([]byte, error) {
+func (env *ShellEnvironment) unWrapError(err error) error {
+	cause := err
+	for {
+		type nested interface{ Unwrap() error }
+		unwrap, ok := cause.(nested)
+		if !ok {
+			break
+		}
+		cause = unwrap.Unwrap()
+	}
+	return cause
+}
+
+func (env *ShellEnvironment) HTTPRequest(targetURL string, body io.Reader, timeout int, requestModifiers ...HTTPRequestModifier) ([]byte, error) {
 	defer env.Trace(time.Now(), "HTTPRequest", targetURL)
 	ctx, cncl := context.WithTimeout(context.Background(), time.Millisecond*time.Duration(timeout))
 	defer cncl()
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, body)
 	if err != nil {
 		return nil, err
 	}
 	for _, modifier := range requestModifiers {
 		modifier(request)
 	}
+	if env.CmdFlags.Debug {
+		dump, _ := httputil.DumpRequestOut(request, true)
+		env.Log(Debug, "HTTPRequest", string(dump))
+	}
 	response, err := client.Do(request)
 	if err != nil {
 		env.Log(Error, "HTTPRequest", err.Error())
-		return nil, err
+		return nil, env.unWrapError(err)
 	}
 	// anything inside the range [200, 299] is considered a success
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
@@ -620,13 +628,13 @@ func (env *ShellEnvironment) HTTPRequest(targetURL string, timeout int, requestM
 		return nil, err
 	}
 	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
+	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		env.Log(Error, "HTTPRequest", err.Error())
 		return nil, err
 	}
-	env.Log(Debug, "HTTPRequest", string(body))
-	return body, nil
+	env.Log(Debug, "HTTPRequest", string(responseBody))
+	return responseBody, nil
 }
 
 func (env *ShellEnvironment) HasParentFilePath(path string) (*FileInfo, error) {
@@ -667,7 +675,27 @@ func (env *ShellEnvironment) Cache() Cache {
 }
 
 func (env *ShellEnvironment) Close() {
+	defer env.Trace(time.Now(), "Close")
+	templateCache, err := json.Marshal(env.TemplateCache())
+	if err == nil {
+		env.fileCache.Set(TEMPLATECACHE, string(templateCache), 1440)
+	}
 	env.fileCache.Close()
+}
+
+func (env *ShellEnvironment) LoadTemplateCache() {
+	defer env.Trace(time.Now(), "LoadTemplateCache")
+	val, OK := env.fileCache.Get(TEMPLATECACHE)
+	if !OK {
+		return
+	}
+	var templateCache TemplateCache
+	err := json.Unmarshal([]byte(val), &templateCache)
+	if err != nil {
+		env.Log(Error, "LoadTemplateCache", err.Error())
+		return
+	}
+	env.tmplCache = &templateCache
 }
 
 func (env *ShellEnvironment) Logs() string {
@@ -708,7 +736,7 @@ func (env *ShellEnvironment) TemplateCache() *TemplateCache {
 	}
 	goos := env.GOOS()
 	tmplCache.OS = goos
-	if goos == LinuxPlatform {
+	if goos == LINUX {
 		tmplCache.OS = env.Platform()
 	}
 	env.tmplCache = tmplCache
@@ -742,7 +770,7 @@ func dirMatchesOneOf(dir, home, goos string, regexes []string) bool {
 			normalizedElement = strings.Replace(normalizedElement, "~", normalizedHomeDir, 1)
 		}
 		pattern := fmt.Sprintf("^%s$", normalizedElement)
-		if goos == WindowsPlatform || goos == DarwinPlatform {
+		if goos == WINDOWS || goos == DARWIN {
 			pattern = "(?i)" + pattern
 		}
 		matched := regex.MatchString(pattern, normalizedCwd)

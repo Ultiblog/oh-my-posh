@@ -7,6 +7,7 @@ sidebar_label: 🐧 Linux
 import Tabs from "@theme/Tabs";
 import TabItem from "@theme/TabItem";
 import InstallHomebrew from "./homebrew.mdx";
+import Next from "./next.mdx";
 
 ## Set up your terminal
 
@@ -51,14 +52,16 @@ sudo chmod +x /usr/local/bin/oh-my-posh
 mkdir ~/.poshthemes
 wget https://github.com/JanDeDobbeleer/oh-my-posh/releases/latest/download/themes.zip -O ~/.poshthemes/themes.zip
 unzip ~/.poshthemes/themes.zip -d ~/.poshthemes
-chmod u+rw ~/.poshthemes/*.json
+chmod u+rw ~/.poshthemes/*.omp.*
 rm ~/.poshthemes/themes.zip
 ```
 
 </TabItem>
 </Tabs>
 
-[fonts]: /docs/configuration/fonts
+<Next />
+
+[fonts]: /docs/installation/fonts
 [scoop]: https://scoop.sh/
 [wt]: https://github.com/microsoft/terminal
 [iterm2]: https://www.iterm2.com/

@@ -1,4 +1,4 @@
-export POSH_THEME='::CONFIG::'
+export POSH_THEME=::CONFIG::
 export POWERLINE_COMMAND="oh-my-posh"
 export CONDA_PROMPT_MODIFIER=false
 
@@ -50,7 +50,7 @@ function self-insert() {
   fi
   # trigger a tip check only if the input is a space character
   if [[ "$KEYS" = " " ]]; then
-    tooltip=$(::OMP:: print tooltip --config="$POSH_THEME" --shell=zsh --command="$BUFFER" --shell-version="$ZSH_VERSION")
+    tooltip=$(::OMP:: print tooltip --config="$POSH_THEME" --shell=zsh --error="$omp_last_error" --command="$BUFFER" --shell-version="$ZSH_VERSION")
   fi
   # ignore an empty tooltip
   if [[ ! -z "$tooltip" ]]; then
@@ -60,11 +60,11 @@ function self-insert() {
   zle .self-insert
 }
 
-function enable_poshtooltips() {
+if [[ "::TOOLTIPS::" = "true" ]]; then
   zle -N self-insert
-}
+fi
 
-_posh-zle-line-init() {
+function _posh-zle-line-init() {
     [[ $CONTEXT == start ]] || return 0
 
     # Start regular line editor
@@ -91,6 +91,10 @@ _posh-zle-line-init() {
     return ret
 }
 
-function enable_poshtransientprompt() {
+if [[ "::TRANSIENT::" = "true" ]]; then
   zle -N zle-line-init _posh-zle-line-init
-}
+fi
+
+# legacy functions for backwards compatibility
+function enable_poshtooltips() {}
+function enable_poshtransientprompt() {}

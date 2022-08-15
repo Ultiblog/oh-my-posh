@@ -32,7 +32,6 @@ const (
 type Config struct {
 	Version              int           `json:"version"`
 	FinalSpace           bool          `json:"final_space,omitempty"`
-	OSC99                bool          `json:"osc99,omitempty"`
 	ConsoleTitleTemplate string        `json:"console_title_template,omitempty"`
 	TerminalBackground   string        `json:"terminal_background,omitempty"`
 	AccentColor          string        `json:"accent_color,omitempty"`
@@ -44,6 +43,10 @@ type Config struct {
 	SecondaryPrompt      *Segment      `json:"secondary_prompt,omitempty"`
 	DebugPrompt          *Segment      `json:"debug_prompt,omitempty"`
 	Palette              color.Palette `json:"palette,omitempty"`
+	PWD                  string        `json:"pwd,omitempty"`
+
+	// Deprecated
+	OSC99 bool `json:"osc99,omitempty"`
 
 	Output string `json:"-"`
 
@@ -57,7 +60,7 @@ type Config struct {
 // environment and configuration.
 func (cfg *Config) MakeColors(env environment.Environment) color.AnsiColors {
 	cacheDisabled := env.Getenv("OMP_CACHE_DISABLED") == "1"
-	return color.MakeColors(cfg.Palette, !cacheDisabled, cfg.AccentColor)
+	return color.MakeColors(cfg.Palette, !cacheDisabled, cfg.AccentColor, env)
 }
 
 func (cfg *Config) print(message string) {
@@ -119,11 +122,6 @@ func loadConfig(env environment.Environment) *Config {
 
 	err = config.BindStruct("", &cfg)
 	cfg.exitWithError(err)
-
-	// initialize default values
-	if cfg.TransientPrompt == nil {
-		cfg.TransientPrompt = &Segment{}
-	}
 
 	return &cfg
 }

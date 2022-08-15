@@ -3,10 +3,10 @@ package segments
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"oh-my-posh/environment"
 	"oh-my-posh/mock"
 	"oh-my-posh/properties"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,7 +53,7 @@ func TestGolang(t *testing.T) {
 			ParseModFile:          true,
 			HasModFileInParentDir: true,
 			InvalidModfile:        true,
-			ExpectedString:        "../go.mod:1: unknown directive: invalid",
+			ExpectedString:        "1.16",
 			Version:               "go version go1.16 darwin/amd64",
 		},
 	}
@@ -81,7 +81,7 @@ func TestGolang(t *testing.T) {
 			if tc.InvalidModfile {
 				content = "invalid go.mod file"
 			} else {
-				tmp, _ := ioutil.ReadFile(fileInfo.Path)
+				tmp, _ := os.ReadFile(fileInfo.Path)
 				content = string(tmp)
 			}
 			env.On("FileContent", fileInfo.Path).Return(content)
